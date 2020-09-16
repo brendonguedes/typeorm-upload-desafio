@@ -1,5 +1,4 @@
-import { EntityRepository, Repository } from 'typeorm';
-
+import { uuid } from 'uuidv4';
 import Transaction from '../models/Transaction';
 
 interface Balance {
@@ -8,33 +7,53 @@ interface Balance {
   total: number;
 }
 
-@EntityRepository(Transaction)
-class TransactionsRepository extends Repository<Transaction> {
-  public async getBalance(): Promise<Balance> {
-    const transactions = await this.find();
+interface TransactionDTO {
+  title: string;
+  value: number;
+  type: 'income' | 'outcome';
+}
+class TransactionsRepository {
+  private transactions: Transaction[];
 
-    const [income, outcome] = transactions.reduce(
-      (arr, transaction) => {
-        if (transaction.type === 'income') {
-          arr.splice(0, 1, arr[0] + Number(transaction.value));
-        } else {
-          arr.splice(1, 1, arr[1] + Number(transaction.value));
-        }
+  constructor() {
+    this.transactions = [];
+  }
 
-        return arr;
+  public all(): Transaction[] {
+    return this.transactions;
+  }
+
+  public getBalance(): Balance {
+    const balance = this.transactions.reduce(
+      (accumulator, transaction) => {
+        accumulator[transaction.type] += transaction.value;
+        accumulator.total = accumulator.income - accumulator.outcome;
+        return accumulator;
       },
-      [0, 0],
+      {
+        income: 0,
+        outcome: 0,
+        total: 0,
+      },
     );
 
-    const total = income - outcome;
+    return balance;
+  }
 
-    const balance = {
-      income,
-      outcome,
-      total,
+  /* Passing a class instance as
+     the arguments type and using a Utility Type to omit a property
+  */
+  public create({ title, value, type }: TransactionDTO): Transaction {
+    const transaction = {
+      id: uuid(),
+      title,
+      value,
+      type,
     };
 
-    return balance;
+    this.transactions.push(transaction);
+
+    return transaction;
   }
 }
 

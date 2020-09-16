@@ -1,41 +1,24 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-  JoinColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { uuid } from 'uuidv4';
 
-import Category from './Category';
-
-@Entity('transactions')
 class Transaction {
-  @PrimaryGeneratedColumn('uuid')
+  /* Attributes */
   id: string;
 
-  @Column()
   title: string;
 
-  @Column()
-  type: 'income' | 'outcome';
-
-  @Column('decimal')
   value: number;
 
-  @ManyToOne(() => Category, category => category.transaction, { eager: true })
-  @JoinColumn({ name: 'category_id' })
-  category: Category;
+  type: 'income' | 'outcome';
 
-  @Column()
-  category_id: string;
-
-  @CreateDateColumn()
-  created_at: Date;
-
-  @UpdateDateColumn()
-  updated_at: Date;
+  /* Passing a class instance as
+     the arguments type and using a Utility Type to omit a property
+  */
+  constructor({ title, value, type }: Omit<Transaction, 'id'>) {
+    this.id = uuid();
+    this.title = title;
+    this.value = value;
+    this.type = type;
+  }
 }
 
 export default Transaction;

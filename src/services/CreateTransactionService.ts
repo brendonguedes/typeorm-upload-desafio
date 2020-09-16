@@ -1,56 +1,40 @@
-import { getCustomRepository, getRepository } from 'typeorm';
-
-import AppError from '../errors/AppError';
-
+import TransactionsRepository from '../repositories/TransactionsRepository';
 import Transaction from '../models/Transaction';
-import TransactionRepository from '../repositories/TransactionsRepository';
 
-import Category from '../models/Category';
-
-interface Request {
+/* Data Transfer Object responsable
+   to transfer all the data related to a Transaction */
+interface RequestDTO {
   title: string;
   value: number;
   type: 'income' | 'outcome';
-  category: string;
 }
 
 class CreateTransactionService {
-  public async execute({
-    title,
-    value,
-    type,
-    category,
-  }: Request): Promise<Transaction> {
-    const transactionRepository = getCustomRepository(TransactionRepository);
-    const categoriesRepository = getRepository(Category);
+  // Attribute
+  private transactionsRepository: TransactionsRepository;
 
-    if (type === 'outcome') {
-      const { total } = await transactionRepository.getBalance();
+  /* Dependency Inversion
+     The service isn't responsable of how the repository is initialized/treated
+  */
+  constructor(transactionsRepository: TransactionsRepository) {
+    this.transactionsRepository = transactionsRepository;
+  }
 
-      if (total - value < 0) {
-        throw new AppError('Outcome value extrapolates the avaliable value');
-      }
+  // Execute the service logic
+  public execute({ title, value, type }: RequestDTO): Transaction {
+    const balance = this.transactionsRepository.getBalance();
+
+    if (balance.total < value && type === 'outcome') {
+      throw new Error(
+        'Your credits are not enough to create a income with that value',
+      );
     }
 
-    let transactionCategory = await categoriesRepository.findOne({
-      where: { title: category },
-    });
-
-    if (!transactionCategory) {
-      transactionCategory = categoriesRepository.create({
-        title: category,
-      });
-      await categoriesRepository.save(transactionCategory);
-    }
-
-    const transaction = transactionRepository.create({
+    const transaction = this.transactionsRepository.create({
       title,
       value,
       type,
-      category: transactionCategory,
     });
-
-    await transactionRepository.save(transaction);
 
     return transaction;
   }
